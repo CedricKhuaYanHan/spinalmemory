@@ -1,0 +1,89 @@
+# spinalmemory default configuration (docs/architecture.md).
+# No setting is chosen by a dataset's name; the query path branches only on the input format (README.md).
+# A named config next to this file lists only what it changes.
+name = "default"
+
+# ---------------------------------------------------------------- build (decides the store; hashed into the build key)
+[build]
+writer_prompt = "w3-v1"          # spinalmemory/write/writer.py PROMPTS
+writer_max_tokens = 3072         # output cap per window
+lme_turn_max_tokens = 512        # user turns of user/assistant histories truncated at 512 budget tokens
+max_lines_per_turn = 3           # 0-3 fact lines per turn
+encoder = "BAAI/bge-base-en-v1.5"
+
+# ---------------------------------------------------------------- LLM (no key here: keys come from the environment)
+[llm]                            # SPINE_LLM_PROVIDER, SPINE_LLM_MODEL, SPINE_LLM_BASE_URL override these
+provider = "anthropic"           # "anthropic", "openai" or "openai_compatible"
+model = "claude-sonnet-5"
+base_url = ""                    # empty: the provider's default; required for openai_compatible
+
+[llm.writer]                     # the writer only; empty values follow [llm]. Its provider and model are
+provider = ""                    # part of the build key
+model = ""
+base_url = ""
+
+[llm.answer]                     # the answer call only; empty values follow [llm]
+provider = ""
+model = ""
+base_url = ""
+
+# ---------------------------------------------------------------- devices (encoders are fp32 on one device per run)
+[device]
+encoder = "auto"                 # "auto" picks cuda, then mps, then cpu; or name a torch device
+reranker = "auto"
+reranker_max_length = 256        # cross-encoder input cap per (question, passage) pair
+
+# ---------------------------------------------------------------- search over the combined message + fact index
+[search]
+rrf_k = 60                       # RRF over BM25 and exact cosine
+person_list = true               # a third RRF list of the turns of the persons the question names
+
+# ---------------------------------------------------------------- fact history (no LLM)
+[history]
+enabled = true
+seed_k = 20                      # seeds: facts cited by the top seed_k first-stage turns
+min_members = 2                  # a matching spine has at least this many facts
+max_additions = 20               # at most this many spine-added turns in the shared pool
+
+# ---------------------------------------------------------------- rerank
+[rank]
+scorer = "mxbai-xsmall"          # mixedbread-ai/mxbai-rerank-xsmall-v1, revision pinned in project/vectors.py
+limit = 100                      # one shared pool, spine additions included
+
+# ---------------------------------------------------------------- size policy and packing
+[pack]
+policy = "adaptive"              # budget_small when the reranker's top-1 leads the k-th by >= margin_threshold,
+                                 # else budget; "fixed" always uses budget
+budget = 3000                    # memory-block tokens (budget tokenizer); counts everything in the block
+budget_small = 1500
+margin_threshold = 1.99          # in mxbai-rerank-xsmall logits
+margin_k = 10
+episode = false                  # true adds each top turn's neighbours behind it (episode_* below)
+episode_seeds = 10
+episode_prev = 1
+episode_next = 2
+episode_cap = 80
+
+# ---------------------------------------------------------------- rendering
+[render]
+template_dates = true            # resolved dates in calendar and template forms ("the week before 8 May 2023")
+facts = "added"                  # fact lines under passages: true (all), false (none) or "added" (only human-written
+                                 # or corrected lines; machine lines restate the passage)
+history_block = true             # the fact-history section before the sessions
+history_values = 8               # at most this many values per fact-history line (newest first)
+count_items_only = true          # the enumerate line only for counts of distinct items
+
+[temporal]                       # questions that carry their own date and match the temporal rule
+enabled = true
+brackets = true                  # question-date brackets in the memory block
+max_tokens = 320                 # output cap (Notes + Answer)
+
+[advice]                         # questions that match the advice rule
+enabled = true
+
+[reader]
+max_tokens = 256
+
+[answer]                         # parsing the one output (code)
+cut_handles = true               # handles cut from the Answer line; an answer of only handles becomes empty
+empty_when_cut = true            # no Answer line + cut off at max_tokens or a Notes line -> empty answer

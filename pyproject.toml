@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spinalmemory"
+version = "0.1.0"
+description = "Long-term conversational memory over Markdown truth files, with one LLM call per question"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Cedric Khua" }]
+requires-python = ">=3.12"
+dependencies = ["numpy", "torch", "sentence-transformers", "transformers", "httpx"]
+
+[project.optional-dependencies]
+test = ["pytest", "hypothesis"]
+
+[project.urls]
+Repository = "https://github.com/CedricKhuaYanHan/spinalmemory"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
